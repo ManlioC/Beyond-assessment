@@ -1384,44 +1384,21 @@ async function submitLead() {
   const level = totalScore <= 22 ? 'Early Stage' : totalScore <= 34 ? 'Growth Ready' : 'Scale Up';
 
   try {
-    const res = await fetch('/api/subscribe', {
+    await fetch('https://hook.eu1.make.com/hrjbrs9qmf6f53kzxcyt23sp9cc6vqaq', {
       method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'content-type': 'application/json',
-        'api-key': BREVO_API_KEY
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        email: email,
-        attributes: {
-          FIRSTNAME: name.split(' ')[0],
-          LASTNAME: name.split(' ').slice(1).join(' ') || '',
-          COMPANY: company,
-          JOBTITLE: role,
-          GROWTH_SCORE: totalScore,
-          GROWTH_LEVEL: level,
-          SECTOR: sectorName
-        },
-        listIds: [BREVO_LIST_ID],
-        updateEnabled: true
+        email, name, company,
+        role: role || '',
+        score: totalScore,
+        level,
+        sector: sectorName
       })
     });
-
-    if (res.ok || res.status === 204) {
-      showResult(scores, totalScore, name);
-    } else {
-      const err = await res.json().catch(() => ({}));
-      if (err.code === 'duplicate_parameter') {
-        showResult(scores, totalScore, name);
-      } else {
-        throw new Error(err.message || 'Errore API');
-      }
-    }
+    showResult(scores, totalScore, name);
   } catch (e) {
-    status.className = 'status-msg error';
-    status.textContent = 'Errore di connessione. Riprova o contatta direttamente beyond@beyondstrategy.it';
-    btn.disabled = false;
-    btn.textContent = 'Vedi il mio score →';
+    // Mostra comunque il risultato — il lead verrà recuperato manualmente
+    showResult(scores, totalScore, name);
   }
 }
 
