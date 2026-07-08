@@ -916,7 +916,7 @@
             <div class="cta-overline">Sessione Strategica Gratuita</div>
             <div class="cta-title">Vuoi sapere da dove partire?</div>
             <p class="cta-body">In 30 minuti analizziamo insieme le tue priorità e definiamo il primo passo concreto. Nessun pitch. Nessun impegno.</p>
-            <a href="https://calendly.com/beyondstrategy" class="cta-btn" target="_blank">Prenota la sessione gratuita →</a>
+            <a href="https://calendly.com/beyondstrategy-consulting/30min" class="cta-btn" target="_blank">Prenota la sessione gratuita →</a>
             <div class="cta-note">30 minuti · Gratuito · Senza impegno</div>
           </div>
         </div>
@@ -930,7 +930,7 @@
 // ── CONFIG ──────────────────────────────────────────────────────────────────
 // API key gestita server-side via variabile d'ambiente Vercel
 // List ID gestito server-side
-const CALENDLY_URL  = 'https://calendly.com/beyondstrategy';
+const CALENDLY_URL  = 'https://calendly.com/beyondstrategy-consulting/30min';
 
 // ── SECTORS ──────────────────────────────────────────────────────────────────
 const SECTORS = [
@@ -1383,23 +1383,30 @@ async function submitLead() {
   const sectorName = SECTORS.find(s => s.id === selectedSector)?.name || selectedSector;
   const level = totalScore <= 22 ? 'Early Stage' : totalScore <= 34 ? 'Growth Ready' : 'Scale Up';
 
+  // Salva i dati in localStorage come backup
   try {
-    await fetch('https://hook.eu1.make.com/hrjbrs9qmf6f53kzxcyt23sp9cc6vqaq', {
+    const leadData = { email, name, company, role, score: totalScore, level, sector: sectorName, ts: new Date().toISOString() };
+    localStorage.setItem('beyond_lead', JSON.stringify(leadData));
+  } catch(e) {}
+
+  // Invia a Brevo via form nativo (no CORS)
+  try {
+    const formData = new FormData();
+    formData.append('EMAIL', email);
+    formData.append('FIRSTNAME', name.split(' ')[0]);
+    formData.append('LASTNAME', name.split(' ').slice(1).join(' ') || '');
+    formData.append('COMPANY', company);
+    formData.append('email_address_check', '');
+    formData.append('locale', 'it');
+    fetch('https://1b391f45.sibforms.com/serve/MUIFAF6ap23rNn1jFVZw6GeLN-IrkqoHqHRfrJ4z56gxYqOZ7wdHQxmqnUoF6dIu9olacak45aDj4qllLPVmRYHn66_Kf8Fk1_PtT0YKSL15P6sHWcI6VcmBQ9OXkI3Y32EzbFUgGbn5tFZIoAV2nX8z5_BwU76IQh797VKqZ87d7IepzY-8W1nxQQhIXMI0Yav0h6Huh6N1RKxQ6w==', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        email, name, company,
-        role: role || '',
-        score: totalScore,
-        level,
-        sector: sectorName
-      })
+      mode: 'no-cors',
+      body: formData
     });
-    showResult(scores, totalScore, name);
-  } catch (e) {
-    // Mostra comunque il risultato — il lead verrà recuperato manualmente
-    showResult(scores, totalScore, name);
-  }
+  } catch(e) {}
+
+  // Mostra sempre il risultato — indipendentemente dall'esito dell'invio
+  showResult(scores, totalScore, name);
 }
 
 // ── RESULT RENDER ─────────────────────────────────────────────────────────────
