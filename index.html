@@ -777,6 +777,17 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
+
+  @media print {
+    .topbar, .progress-track, .cta-box, .card-footer, #btn-print { display: none !important; }
+    body { background: white; }
+    .card { border: none; box-shadow: none; max-width: 100%; }
+    .score-hero { background: #001845 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .level-pill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .priority-card, .plan-col { break-inside: avoid; }
+    .plan-grid { grid-template-columns: repeat(3,1fr); }
+  }
+
   @media (max-width: 520px) {
     .card-body { padding: 1.5rem 1.25rem 1.25rem; }
     .card-footer { padding: 0.875rem 1.25rem 1.25rem; }
@@ -1396,6 +1407,10 @@ async function submitLead() {
     formData.append('FIRSTNAME', name.split(' ')[0]);
     formData.append('LASTNAME', name.split(' ').slice(1).join(' ') || '');
     formData.append('COMPANY', company);
+    formData.append('JOBTITLE', role || '');
+    formData.append('GROWTH_SCORE', totalScore);
+    formData.append('GROWTH_LEVEL', level);
+    formData.append('SECTOR', sectorName);
     formData.append('email_address_check', '');
     formData.append('locale', 'it');
     fetch('https://1b391f45.sibforms.com/serve/MUIFAF6ap23rNn1jFVZw6GeLN-IrkqoHqHRfrJ4z56gxYqOZ7wdHQxmqnUoF6dIu9olacak45aDj4qllLPVmRYHn66_Kf8Fk1_PtT0YKSL15P6sHWcI6VcmBQ9OXkI3Y32EzbFUgGbn5tFZIoAV2nX8z5_BwU76IQh797VKqZ87d7IepzY-8W1nxQQhIXMI0Yav0h6Huh6N1RKxQ6w==', {
@@ -1456,6 +1471,16 @@ function showResult(scores, totalScore, name) {
   ).join('');
 
   document.querySelector('.cta-btn').href = CALENDLY_URL;
+
+  // Add print button
+  const existingPrint = document.getElementById('btn-print');
+  if (existingPrint) existingPrint.remove();
+  const printBtn = document.createElement('button');
+  printBtn.id = 'btn-print';
+  printBtn.innerHTML = '⬇ Salva o stampa il report';
+  printBtn.style.cssText = 'display:block;width:100%;margin:1rem 0 0;padding:11px;border:1px solid #D1D5DB;border-radius:8px;background:white;font-size:13px;font-weight:500;color:#3D4450;cursor:pointer;font-family:inherit;';
+  printBtn.onclick = () => window.print();
+  document.querySelector('.cta-box').after(printBtn);
 
   showScreen('s-result');
   document.getElementById('progress').style.width = '100%';
