@@ -5,9 +5,22 @@
 [functions]
   node_bundler = "esbuild"
 
+# Intestazioni di sicurezza per tutte le pagine statiche
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://1b391f45.sibforms.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
+
 # Il widget viene caricato da beyondstrategy.it: cache breve per far arrivare subito gli aggiornamenti
 [[headers]]
   for = "/chat-widget.js"
   [headers.values]
     Cache-Control = "public, max-age=300"
     Access-Control-Allow-Origin = "*"
+    Cross-Origin-Resource-Policy = "cross-origin"

@@ -404,6 +404,27 @@
     color: var(--ink-light);
   }
 
+  .consent {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 12px;
+    color: var(--ink-mid);
+    line-height: 1.5;
+    margin-top: 6px;
+    cursor: pointer;
+  }
+
+  .consent input {
+    margin-top: 3px;
+    accent-color: var(--navy);
+    flex: none;
+  }
+
+  .consent a {
+    color: var(--navy-mid);
+  }
+
   .privacy-note {
     font-size: 11px;
     color: var(--ink-light);
@@ -835,7 +856,7 @@
         </div>
         <div class="card-footer">
           <span></span>
-          <button class="btn-next" id="btn-start" disabled onclick="startAssessment()">Inizia l'assessment →</button>
+          <button class="btn-next" id="btn-start" disabled>Inizia l'assessment →</button>
         </div>
       </div>
 
@@ -848,9 +869,9 @@
           <div class="options" id="q-options"></div>
         </div>
         <div class="card-footer">
-          <button class="btn-back" id="btn-back" onclick="prevQ()">← Indietro</button>
+          <button class="btn-back" id="btn-back">← Indietro</button>
           <span class="step-info" id="step-info"></span>
-          <button class="btn-next" id="btn-next" disabled onclick="nextQ()">Avanti →</button>
+          <button class="btn-next" id="btn-next" disabled>Avanti →</button>
         </div>
       </div>
 
@@ -876,12 +897,16 @@
             <label class="form-label">Ruolo</label>
             <input class="form-input" id="f-role" type="text" placeholder="CEO, Direttore Marketing, Titolare…">
           </div>
-          <p class="privacy-note">I tuoi dati sono al sicuro. Non li condividiamo con terzi e puoi cancellarti in qualsiasi momento.</p>
+          <label class="consent">
+            <input type="checkbox" id="f-consent">
+            <span>Ho letto l'<a href="https://beyondstrategy.it/privacy-policy" target="_blank" rel="noopener">informativa privacy</a> e acconsento al trattamento dei miei dati per ricevere il report ed essere ricontattato da Beyond Strategy. *</span>
+          </label>
+          <p class="privacy-note">Puoi revocare il consenso e cancellarti in qualsiasi momento.</p>
           <div class="status-msg" id="lead-status"></div>
         </div>
         <div class="card-footer">
-          <button class="btn-back" onclick="goBack()">← Indietro</button>
-          <button class="btn-next" id="btn-submit" onclick="submitLead()">Vedi il mio score →</button>
+          <button class="btn-back" id="btn-lead-back" type="button">← Indietro</button>
+          <button class="btn-next" id="btn-submit">Vedi il mio score →</button>
         </div>
       </div>
 
@@ -937,563 +962,7 @@
   </main>
 </div>
 
-<script>
-// ── CONFIG ──────────────────────────────────────────────────────────────────
-// API key gestita server-side via variabile d'ambiente Vercel
-// List ID gestito server-side
-const CALENDLY_URL  = 'https://calendly.com/beyondstrategy-consulting/30min';
-
-// ── SECTORS ──────────────────────────────────────────────────────────────────
-const SECTORS = [
-  {id:'agri',     icon:'🌾', name:'Agroalimentare',           desc:'Olio, vino, ortofrutta, trasformazione'},
-  {id:'tourism',  icon:'🏨', name:'Turismo & Accoglienza',    desc:'Hotel, resort, B&B, ristorazione, DMO'},
-  {id:'retail',   icon:'🛍️', name:'GDO & Retail',             desc:'Grande distribuzione, retail fisico'},
-  {id:'edilizia', icon:'🏗️', name:'Edilizia & Real Estate',   desc:'Costruzioni, impiantistica, real estate'},
-  {id:'mfg',      icon:'⚙️', name:'Meccanica & Manifattura',  desc:'Macchinari, automotive, aerospazio'},
-  {id:'blue',     icon:'⚓', name:'Blue Economy',             desc:'Charter, cantieristica, logistica mare'},
-  {id:'services', icon:'💼', name:'Servizi Professionali',    desc:'Consulenza, studi, agenzie, IT, HR'},
-  {id:'green',    icon:'☀️', name:'Energia & Green Tech',     desc:'Rinnovabili, efficienza, impianti'},
-  {id:'moda',     icon:'👜', name:'Moda, Tessile & Lusso',    desc:'Produzione, terzismo, brand D2C'},
-  {id:'health',   icon:'🏥', name:'Sanità & Benessere',       desc:'Cliniche, diagnostica, wellness'}
-];
-
-// ── COMMON QUESTIONS ─────────────────────────────────────────────────────────
-const COMMON = [
-  {s:'Business Foundation', q:'Come acquisite oggi la maggior parte dei clienti?',
-   o:['Passaparola e referral','Commerciali e rete vendita diretta','Canali digitali (social, SEO, ads)','Mix strutturato di canali'], sc:[1,2,3,4]},
-  {s:'Business Foundation', q:'Avete una proposta di valore chiara e differenziante rispetto ai competitor?',
-   o:['No, siamo simili agli altri','Sì, ma non la comunichiamo bene','Sì, ed è al centro del nostro marketing','Non abbiamo mai analizzato i competitor'], sc:[1,2,3,1]},
-  {s:'Business Foundation', q:'Sapete quanto vi costa acquisire un cliente nuovo?',
-   o:['No, non lo misuriamo','Abbiamo un\'idea approssimativa','Sì, lo monitoriamo regolarmente','Sì, e lo confrontiamo con il valore generato nel tempo'], sc:[1,2,3,4]},
-  {s:'Commerciale & Sales', q:'Avete un processo di vendita strutturato e ripetibile?',
-   o:['No, ogni commerciale fa a modo suo','Abbiamo linee guida ma niente di formalizzato','Sì, abbiamo un processo definito e un CRM','Sì, e lo ottimizziamo continuamente con dati'], sc:[1,2,3,4]},
-  {s:'Commerciale & Sales', q:'Marketing e vendite lavorano in modo allineato?',
-   o:['Sono due mondi separati','Si parlano ma senza metodo','Condividono obiettivi e KPI comuni','Non abbiamo ancora un team marketing strutturato'], sc:[1,2,3,1]},
-  {s:'Commerciale & Sales', q:'Quanto del vostro fatturato dipende da clienti esistenti vs nuovi?',
-   o:['Quasi tutto da clienti esistenti (>80%)','Mix equilibrato (50/50)','Prevalentemente nuovi clienti','Non lo misuriamo'], sc:[2,3,2,1]},
-  {s:'Digitale & Presenza', q:'Come valutereste la vostra presenza digitale oggi?',
-   o:['Sito vecchio, social fermi, zero ads','Presenti ma non genera business reale','Digitale attivo ma non integrato in un funnel','Funnel digitale strutturato con misurazione'], sc:[1,2,3,4]},
-  {s:'Digitale & Presenza', q:'Producete contenuti regolarmente per attrarre clienti?',
-   o:['No, quasi mai','Sporadicamente, senza piano editoriale','Sì, con cadenza regolare','Sì, con strategia SEO/AEO e distribuzione multicanale'], sc:[1,2,3,4]},
-  {s:'Obiettivi & Risorse', q:'Qual è la vostra priorità di crescita nei prossimi 12 mesi?',
-   o:['Acquisire nuovi clienti','Fidelizzare e aumentare il valore dei clienti esistenti','Entrare in un nuovo mercato o lanciare un nuovo servizio','Strutturare il processo commerciale prima di scalare'], sc:[3,3,3,3]},
-  {s:'Obiettivi & Risorse', q:'Che tipo di supporto cercate?',
-   o:['Qualcuno che faccia per noi (execution)','Qualcuno che ci guidi (strategia + coaching)','Un piano chiaro da eseguire internamente','Non lo sappiamo ancora, vogliamo capire da dove partire'], sc:[3,3,3,2]}
-];
-
-// ── VERTICAL QUESTIONS ───────────────────────────────────────────────────────
-const VERTICAL = {
-  agri:[
-    {s:'Agroalimentare', q:'Come presidiate il posizionamento del vostro prodotto nella distribuzione?',
-     o:['Siamo in GDO ma senza leva negoziale','Lavoriamo con distributori locali senza brand proprio','Abbiamo un brand riconoscibile con margini controllati','Siamo presenti sia in GDO sia con canale diretto/export'], sc:[1,2,3,4]},
-    {s:'Agroalimentare', q:'Avete una strategia di internazionalizzazione attiva?',
-     o:['No, vendiamo solo in Italia','Qualche richiesta estera ma non cerchiamo attivamente','Abbiamo partecipato a fiere internazionali (Vinitaly, SIAL)','Abbiamo agenti o distributori esteri strutturati'], sc:[1,2,3,4]},
-    {s:'Agroalimentare', q:'Come sfruttate la certificazione e le denominazioni (DOP, IGP, Bio)?',
-     o:['Non abbiamo certificazioni','Le abbiamo ma non le usiamo in comunicazione','Sono al centro del nostro posizionamento','Le usiamo come leva per premium pricing e export'], sc:[1,2,3,4]},
-    {s:'Agroalimentare', q:'Presidiate il canale D2C (e-commerce, mercati, farm shop)?',
-     o:['No, vendiamo solo tramite intermediari','Qualche vendita diretta ma non strutturata','Abbiamo un canale diretto con margini migliori','D2C è una quota rilevante del nostro fatturato'], sc:[1,2,3,4]},
-    {s:'Agroalimentare', q:'Come gestite la tracciabilità e la comunicazione di filiera?',
-     o:['Non la comunichiamo','È indicata in etichetta ma non raccontata','Abbiamo una storia di filiera che usiamo in marketing','La tracciabilità è una leva competitiva centrale (QR, storytelling)'], sc:[1,2,3,4]}
-  ],
-  tourism:[
-    {s:'Turismo & Accoglienza', q:'Qual è il vostro mix di canali di prenotazione?',
-     o:['Quasi tutto OTA (Booking, Airbnb) con commissioni alte','Mix OTA e diretto senza strategia chiara','Stiamo riducendo le OTA aumentando il diretto','Prenotazione diretta prevalente con revenue management attivo'], sc:[1,2,3,4]},
-    {s:'Turismo & Accoglienza', q:'Come gestite la reputazione online?',
-     o:['Leggiamo le recensioni ma non rispondiamo sistematicamente','Rispondiamo ma senza strategia','Monitoriamo attivamente e gestiamo la reputazione come asset','Reputazione integrata nella strategia commerciale con KPI dedicati'], sc:[1,2,3,4]},
-    {s:'Turismo & Accoglienza', q:'Avete un\'offerta esperienziale oltre al pernottamento?',
-     o:['No, vendiamo solo camere/appartamenti','Qualche extra ma non strutturato come prodotto','Pacchetti esperienza definiti e comunicati','Ecosistema esperienziale con partner locali e upselling strutturato'], sc:[1,2,3,4]},
-    {s:'Turismo & Accoglienza', q:'Come segmentate e comunicate con i vostri ospiti?',
-     o:['Non abbiamo un database strutturato','Abbiamo i contatti ma non li usiamo','Newsletter periodica con offerte','CRM con segmentazione per tipo ospite, stagione e comportamento'], sc:[1,2,3,4]},
-    {s:'Turismo & Accoglienza', q:'Presidiate il segmento corporate e gruppi organizzati?',
-     o:['No, solo leisure individuale','Qualche richiesta ma niente di commercializzato','Offerta corporate/gruppi definita ma poco visibile','Pipeline attiva con account dedicati e contratti corporate'], sc:[1,2,3,4]}
-  ],
-  retail:[
-    {s:'GDO & Retail', q:'Come misurate le performance del punto vendita?',
-     o:['Fatturato totale, nient\'altro','Fatturato per categoria ma senza benchmark','KPI strutturati: scontrino medio, conversion rate, frequenza','Dashboard integrata con dati sell-out, stock e comportamento cliente'], sc:[1,2,3,4]},
-    {s:'GDO & Retail', q:'Avete una strategia omnicanale attiva?',
-     o:['Solo fisico, il digitale non ci riguarda','Abbiamo un e-commerce ma è separato dal negozio','Online e offline si parlano ma non sono integrati','Esperienza cliente unificata su tutti i touchpoint'], sc:[1,2,3,4]},
-    {s:'GDO & Retail', q:'Come gestite il rapporto con i fornitori e il trade marketing?',
-     o:['Rapporto transazionale puro','Qualche attività promozionale condivisa','Piano di trade marketing strutturato con i key supplier','Co-marketing, dati condivisi e pianificazione congiunta'], sc:[1,2,3,4]},
-    {s:'GDO & Retail', q:'Qual è la vostra strategia di fidelizzazione cliente?',
-     o:['Nessuna, puntiamo sul prezzo','Carta fedeltà ma non la sfruttiamo davvero','Programma loyalty attivo con segmentazione base','CRM avanzato con personalizzazione offerte e comunicazione'], sc:[1,2,3,4]},
-    {s:'GDO & Retail', q:'Come affrontate la pressione competitiva dell\'e-commerce?',
-     o:['Non sappiamo come rispondere','Competiamo sul prezzo','Puntiamo su servizio ed esperienza in store','Strategia ibrida: esperienza fisica + servizi digitali integrati'], sc:[1,1,3,4]}
-  ],
-  edilizia:[
-    {s:'Edilizia & Real Estate', q:'Come acquisite nuovi cantieri o commesse?',
-     o:['Solo network personale e referral','Qualche presenza su portali di gara o Mepa','Commerciale dedicato + presenza su canali B2B','Pipeline strutturata con CRM e key account management'], sc:[1,2,3,4]},
-    {s:'Edilizia & Real Estate', q:'Come presidiate i bandi pubblici e le agevolazioni (Superbonus, PNRR)?',
-     o:['Non li seguiamo attivamente','Partecipiamo occasionalmente','Abbiamo qualcuno dedicato al monitoraggio bandi','È una parte strutturata del nostro business development'], sc:[1,2,3,4]},
-    {s:'Edilizia & Real Estate', q:'Avete una presenza digitale B2B (LinkedIn, portfolio lavori, case studies)?',
-     o:['No, lavoriamo solo di persona','Sito istituzionale datato','Portfolio online aggiornato con casi reali','Presenza B2B strutturata: LinkedIn aziendale, referenze, thought leadership'], sc:[1,2,3,4]},
-    {s:'Edilizia & Real Estate', q:'Come gestite il rapporto con studi di progettazione e general contractor?',
-     o:['Contatti sporadici su singola commessa','Qualche relazione consolidata ma informale','Account dedicati per i principali partner progettuali','Programma strutturato di partner management con accordi quadro'], sc:[1,2,3,4]},
-    {s:'Edilizia & Real Estate', q:'Siete posizionati su una specializzazione tecnica riconoscibile?',
-     o:['Facciamo tutto, nessuna specializzazione','Abbiamo competenze specifiche ma non le comunichiamo','Siamo riconosciuti per una tipologia di intervento','Siamo il riferimento di mercato nella nostra specializzazione'], sc:[1,2,3,4]}
-  ],
-  mfg:[
-    {s:'Meccanica & Manifattura', q:'Come gestite il ciclo di vendita con i vostri clienti B2B?',
-     o:['Reattivi alle RFQ, nessuna azione proattiva','Qualche visita commerciale ma senza metodo','Processo strutturato con account manager e CRM','Sales process completo con pre-sales tecnico e business development'], sc:[1,2,3,4]},
-    {s:'Meccanica & Manifattura', q:'Presidiate fiere di settore e canali di thought leadership tecnica?',
-     o:['No, non investiamo in fiere né contenuti','Presenza in fiera ma senza follow-up strutturato','Fiere + qualche contenuto tecnico (white paper, video)','Strategia integrata: fiere, contenuti, webinar, certificazioni'], sc:[1,2,3,4]},
-    {s:'Meccanica & Manifattura', q:'Come gestite il rapporto con i clienti esistenti (key account)?',
-     o:['Reattivi alle richieste, nessuna gestione proattiva','Check-in occasionali con i clienti principali','Account plan annuale per i top 10 clienti','Key account management strutturato con piani di sviluppo e upselling'], sc:[1,2,3,4]},
-    {s:'Meccanica & Manifattura', q:'Avete una strategia di internazionalizzazione o export?',
-     o:['No, solo mercato italiano','Qualche richiesta estera ma non strutturata','Export presente con agenti o distributori esteri','Strategia export strutturata con presenze locali o JV'], sc:[1,2,3,4]},
-    {s:'Meccanica & Manifattura', q:'Come presidiate la digital transformation del vostro prodotto/processo?',
-     o:['Non è una priorità','Stiamo valutando ma senza piano concreto','Abbiamo avviato progetti di Industry 4.0 o IoT','Digital transformation integrata nel posizionamento e nell\'offerta'], sc:[1,2,3,4]}
-  ],
-  blue:[
-    {s:'Blue Economy', q:'Come gestite la stagionalità del vostro business?',
-     o:['La subiamo: alta stagione piena, bassa stagione ferma','Qualche iniziativa ma non strutturata','Lavoriamo su destagionalizzazione con offerte dedicate','Piano commerciale annuale che copre tutto l\'anno'], sc:[1,2,3,4]},
-    {s:'Blue Economy', q:'Quanto pesa il canale digitale nella vostra acquisizione clienti?',
-     o:['Quasi zero, lavoriamo su fiere e relazioni dirette','Abbiamo un sito ma non genera prenotazioni/contatti','OTA o marketplace ci portano clienti ma commissioni alte','Canale diretto digitale che riduce la dipendenza da intermediari'], sc:[1,2,2,4]},
-    {s:'Blue Economy', q:'Avete una strategia per il mercato internazionale?',
-     o:['No, lavoriamo solo con clientela italiana','Arrivano stranieri ma non li cerchiamo attivamente','Materiali in inglese e presenza su canali internazionali','Strategia multilingua e partnership con operatori esteri'], sc:[1,2,3,4]},
-    {s:'Blue Economy', q:'Come gestite il segmento corporate e MICE?',
-     o:['Non lo abbiamo mai considerato','Qualche richiesta sporadica ma niente di strutturato','Offerta dedicata ma poca commercializzazione','Canale attivo con pipeline e account dedicati'], sc:[1,2,3,4]},
-    {s:'Blue Economy', q:'Avete un sistema di fidelizzazione per clienti ricorrenti?',
-     o:['No, ogni stagione si riparte da zero','Manteniamo i contatti ma in modo informale','Newsletter o CRM di base','Programma strutturato con offerte riservate e referral'], sc:[1,2,3,4]}
-  ],
-  services:[
-    {s:'Servizi Professionali', q:'Come generate nuovi clienti oggi?',
-     o:['Solo passaparola, niente di strutturato','Qualche networking ma discontinuo','Content marketing o LinkedIn con risultati parziali','Sistema strutturato: referral program + digital + eventi'], sc:[1,2,3,4]},
-    {s:'Servizi Professionali', q:'Avete un posizionamento specialistico chiaro?',
-     o:['Facciamo tutto per tutti','Abbiamo una specializzazione ma non la comunichiamo','Siamo riconosciuti in una nicchia specifica','Siamo il riferimento di mercato in una vertical precisa'], sc:[1,2,3,4]},
-    {s:'Servizi Professionali', q:'Come gestite il processo di proposta e chiusura?',
-     o:['Ogni proposta è diversa, non abbiamo un metodo','Template base ma molto personalizzato ogni volta','Processo strutturato con follow-up sistematico','Sales process definito con CRM, scoring e win/loss analysis'], sc:[1,2,3,4]},
-    {s:'Servizi Professionali', q:'Presidiate la vostra autorevolezza digitale?',
-     o:['No, zero contenuti e presenza minima','LinkedIn personale attivo ma senza strategia','Content strategy con pubblicazioni regolari','Thought leadership strutturata: articoli, speaker, media relations'], sc:[1,2,3,4]},
-    {s:'Servizi Professionali', q:'Come gestite la retention e l\'espansione sui clienti esistenti?',
-     o:['Il cliente finisce il progetto e spesso non lo rivediamo','Manteniamo il rapporto ma senza un piano','Check-in periodici e proposte di upselling occasionali','Account management strutturato con piano di sviluppo per cliente'], sc:[1,2,3,4]}
-  ],
-  green:[
-    {s:'Energia & Green Tech', q:'Come acquisite commesse residenziali o industriali?',
-     o:['Solo passaparola e referral locali','Agenti o rivenditori senza formazione commerciale','Rete commerciale strutturata con lead generation digitale','Pipeline B2B e B2C separate con funnel dedicati'], sc:[1,2,3,4]},
-    {s:'Energia & Green Tech', q:'Come presidiate gli incentivi e le agevolazioni di settore?',
-     o:['Non li seguiamo: ci pensa il cliente','Informiamo il cliente ma senza consulenza strutturata','Il presidio degli incentivi è parte del nostro valore aggiunto','Siamo riconosciuti come advisor su incentivi e finanziamenti green'], sc:[1,2,3,4]},
-    {s:'Energia & Green Tech', q:'Avete una comunicazione che va oltre il risparmio in bolletta?',
-     o:['No, vendiamo solo sul risparmio economico','Parliamo anche di ambiente ma in modo generico','Brand positioning su sostenibilità con dati e certificazioni','Narrativa ESG strutturata che apre mercati B2B e istituzionali'], sc:[1,2,3,4]},
-    {s:'Energia & Green Tech', q:'Come gestite il post-vendita e la manutenzione come leva commerciale?',
-     o:['Post-vendita reattivo, interveniamo se chiamati','Contratti di manutenzione base senza upselling','Manutenzione come servizio ricorrente con revenue garantita','Piattaforma O&M con monitoring remoto e upselling su efficienza'], sc:[1,2,3,4]},
-    {s:'Energia & Green Tech', q:'Presidiate le comunità energetiche e il mercato aggregato?',
-     o:['Non è nel nostro radar','Stiamo osservando ma senza azione concreta','Abbiamo partecipato a qualche progetto pilota','È un filone di business strutturato con pipeline dedicata'], sc:[1,2,3,4]}
-  ],
-  moda:[
-    {s:'Moda, Tessile & Lusso', q:'Come bilanciate il lavoro terzista con lo sviluppo di un brand proprio?',
-     o:['Solo terzismo, nessun brand proprio','Abbiamo un brand ma è marginale nel fatturato','Brand proprio in crescita con canale D2C attivo','Brand proprio con distribuzione multicanale e posizionamento premium'], sc:[1,2,3,4]},
-    {s:'Moda, Tessile & Lusso', q:'Come presidiate la distribuzione internazionale?',
-     o:['Solo mercato italiano','Qualche ordine estero ma senza struttura','Agenti o showroom in 2-3 mercati chiave','Rete distributiva internazionale strutturata con key account'], sc:[1,2,3,4]},
-    {s:'Moda, Tessile & Lusso', q:'Come comunicate l\'artigianalità e il Made in Italy?',
-     o:['Non lo comunichiamo sistematicamente','È in etichetta ma non raccontato','Storytelling attivo su artigianalità e territorio','Narrativa premium con contenuti editoriali, PR e collaborazioni'], sc:[1,2,3,4]},
-    {s:'Moda, Tessile & Lusso', q:'Presidiate il canale digitale e l\'e-commerce?',
-     o:['No, solo wholesale fisico','Sito istituzionale senza e-commerce','E-commerce attivo ma non prioritario','D2C digitale come canale strategico con margini controllati'], sc:[1,2,3,4]},
-    {s:'Moda, Tessile & Lusso', q:'Come gestite la sostenibilità come leva di posizionamento?',
-     o:['Non è una priorità comunicativa','Menzioniamo qualche iniziativa green senza struttura','Certificazioni e comunicazione sostenibilità attiva','ESG integrato nel brand positioning e nelle relazioni B2B'], sc:[1,2,3,4]}
-  ],
-  health:[
-    {s:'Sanità & Benessere', q:'Come acquisite nuovi pazienti o clienti?',
-     o:['Solo passaparola e reputazione del medico','Qualche presenza online ma non strutturata','SEO locale + Google My Business + recensioni gestite','Funnel digitale strutturato con lead generation e CRM'], sc:[1,2,3,4]},
-    {s:'Sanità & Benessere', q:'Come gestite la comunicazione nel rispetto della normativa sanitaria?',
-     o:['Evitiamo di comunicare per non rischiare','Comunichiamo poco e in modo generico','Abbiamo un approccio editoriale informativo e compliant','Content strategy sanitaria strutturata con legal review'], sc:[1,2,3,4]},
-    {s:'Sanità & Benessere', q:'Presidiate il patient journey dal primo contatto alla fidelizzazione?',
-     o:['No, gestiamo solo la visita in sé','Qualche reminder appuntamento ma niente di strutturato','CRM base con gestione follow-up e richiamo pazienti','Patient journey mappato con automazioni e programmi di fidelizzazione'], sc:[1,2,3,4]},
-    {s:'Sanità & Benessere', q:'Come sviluppate il canale convenzionato vs privato?',
-     o:['Solo convenzionato, nessuna strategia sul privato','Privato presente ma senza posizionamento premium','Offerta privata con pricing e comunicazione dedicata','Strategia bilanciata con upselling su servizi premium e wellness'], sc:[1,2,3,4]},
-    {s:'Sanità & Benessere', q:'Presidiate la reputazione online e le recensioni?',
-     o:['No, non monitoriamo le recensioni','Leggiamo ma non rispondiamo','Rispondiamo sistematicamente e gestiamo la reputazione','Reputazione come asset strategico con KPI e piano editoriale'], sc:[1,2,3,4]}
-  ]
-};
-
-// ── CONTENT DATA ─────────────────────────────────────────────────────────────
-const PROFILES = {
-  early: {
-    label: 'Early Stage',
-    cls: 'level-early',
-    text: 'Hai un business con potenziale reale, ma stai operando ancora in modo prevalentemente informale. La crescita che vedi è frutto di relazioni e bravura individuale, non di un sistema. Il rischio è che questo modello non scala e che ogni investimento in marketing produca risultati discontinui. Il primo passo non è fare di più: è strutturare quello che già funziona.'
-  },
-  ready: {
-    label: 'Growth Ready',
-    cls: 'level-ready',
-    text: 'Hai fondamenta solide e stai già facendo molte cose giuste. Il problema tipico a questo stadio non è la mancanza di idee, ma la dispersione delle energie su troppi fronti senza una priorità chiara. Sei pronto per attivare una strategia di crescita strutturata. Il rischio è bruciare budget su canali non prioritari o restare bloccato dall\'overanalysis.'
-  },
-  scale: {
-    label: 'Scale Up',
-    cls: 'level-scale',
-    text: 'Operi già con metodo e misuri i risultati. Sei nella fase in cui la crescita richiede ottimizzazione sistemica, non nuove idee. I margini di miglioramento stanno nell\'automazione, nell\'espansione verso nuovi segmenti e nell\'efficienza del funnel esistente. Il rischio a questo stadio è la complessità che rallenta l\'esecuzione.'
-  }
-};
-
-const SECTOR_DATA = {
-  agri: {
-    strengths: ['Conoscenza profonda della filiera produttiva','Patrimonio qualitativo e certificativo del prodotto','Legame con territorio e denominazioni di origine'],
-    priorities: [
-      {t:'Costruisci un brand che vale più del prodotto', d:'Il tuo prodotto ha qualità reale. Il problema è che senza brand, la GDO ti schiaccia sul prezzo. Investi in posizionamento prima di qualsiasi altro canale.'},
-      {t:'Apri un canale D2C anche piccolo', d:'Vendere direttamente — e-commerce, mercati, farm shop — ti restituisce margine e dati sul cliente reale. Inizia con una presenza minimale e misura.'},
-      {t:'Attiva una strategia export su 1-2 mercati target', d:'Il tuo prodotto è Made in Italy: all\'estero vale di più. Scegli un mercato (Germania, USA, Giappone), partecipa a una fiera internazionale, costruisci relazioni con un importatore.'}
-    ],
-    kpi: [{n:'% fatturato D2C vs intermediari', v:'Obiettivo: >20% D2C'},{n:'Margine medio per canale', v:'D2C vs GDO vs export'},{n:'Awareness brand su mercato target', v:'Survey o ricerca digitale'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Posizionamento', items:['Definisci value proposition','Analisi competitor','Brand audit']},
-      {ph:'30-60 gg', goal:'Canale diretto', items:['Landing page D2C','1 fiera o mercato','Database clienti']},
-      {ph:'60-90 gg', goal:'Export', items:['Selezione mercato','Contatto importatori','Materiali EN/DE']}
-    ]
-  },
-  tourism: {
-    strengths: ['Prodotto esperienziale con potenziale di differenziazione','Base di ospiti ricorrenti da attivare','Posizionamento territoriale riconoscibile'],
-    priorities: [
-      {t:'Calcola e riduci la dipendenza dalle OTA', d:'Somma le commissioni degli ultimi 12 mesi. Quel numero è il budget che avresti potuto investire in un canale diretto. Inizia a costruirlo.'},
-      {t:'Sistema la tua reputazione online come asset', d:'Il 93% dei viaggiatori legge le recensioni prima di prenotare. Rispondere a tutte, anche le negative, è la prima forma di marketing gratuito che puoi fare oggi.'},
-      {t:'Crea pacchetti esperienza con margine superiore', d:'Una camera sola è una commodity. Un pacchetto con cena, escursione e transfer è un prodotto differenziato con margine più alto e confronto diretto con OTA più difficile.'}
-    ],
-    kpi: [{n:'% prenotazioni dirette', v:'Obiettivo progressivo >40%'},{n:'RevPAR', v:'Revenue per camera disponibile'},{n:'Tasso ritorno ospiti', v:'Benchmark: >20% annuo'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Reputazione', items:['Risposta sistematica recensioni','Google My Business ottimizzato','Database ospiti']},
-      {ph:'30-60 gg', goal:'Canale diretto', items:['Booking engine sul sito','Campagna email ospiti passati','Pacchetto esperienza lanciato']},
-      {ph:'60-90 gg', goal:'Segmenti', items:['Offerta corporate','Newsletter segmentata','Partnership locali']}
-    ]
-  },
-  retail: {
-    strengths: ['Presidio fisico del territorio con relazione cliente','Conoscenza operativa del category management','Base clienti ricorrente da valorizzare'],
-    priorities: [
-      {t:'Ottimizza lo scontrino medio prima di investire in acquisizione', d:'Analizza i tuoi ultimi 100 scontrini. Meno di 2,5 prodotti per transazione è un segnale di allarme. Il cross-selling in store costa zero e genera impatto immediato.'},
-      {t:'Attiva davvero il programma fedeltà che hai già', d:'Avere una carta fedeltà che non usi è peggio che non averla: hai i dati ma non li sfrutti. Parti con una segmentazione base e un\'offerta dedicata al top 20% clienti.'},
-      {t:'Costruisci una strategia drive-to-store dal digitale', d:'I tuoi clienti cercano online prima di venire in negozio. Google My Business, local SEO e micro-campagne geo-targettizzate sono le leve con il miglior ROI per il retail fisico.'}
-    ],
-    kpi: [{n:'Scontrino medio', v:'Traccia settimanalmente'},{n:'Conversion rate', v:'Visitatori → acquirenti'},{n:'Frequenza acquisto', v:'Visite/anno per cliente attivo'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Analytics', items:['KPI dashboard PV','Analisi scontrino medio','Segmentazione clienti']},
-      {ph:'30-60 gg', goal:'In-store', items:['Programma cross-selling','Loyalty activation','Trade marketing key supplier']},
-      {ph:'60-90 gg', goal:'Drive-to-store', items:['Google My Business','Campagna locale','CRM comunicazione']}
-    ]
-  },
-  edilizia: {
-    strengths: ['Competenza tecnica riconosciuta sul territorio','Network di relazioni consolidato','Capacità esecutiva verificata su commesse reali'],
-    priorities: [
-      {t:'Posizionati su una specializzazione tecnica precisa', d:'Fare tutto per tutti nel settore edilizio è la ricetta per competere solo sul prezzo. Scegli una specializzazione — riqualificazione energetica, involucro, impianti speciali — e presidia quella.'},
-      {t:'Costruisci una presenza B2B su LinkedIn e portfolio digitale', d:'I general contractor e gli studi di progettazione cercano partner online. Un portfolio con case study reali e una presenza LinkedIn professionale ti mette nella shortlist.'},
-      {t:'Presidia attivamente i bandi e le agevolazioni', d:'PNRR e bonus fiscali continuano a generare opportunità. Chi monitora sistematicamente i bandi e si posiziona come partner tecnico dei progettisti vince commesse che gli altri nemmeno vedono.'}
-    ],
-    kpi: [{n:'Pipeline commesse attiva', v:'Valore e numero opportunità'},{n:'% fatturato da bandi pubblici', v:'vs commesse private'},{n:'Tempo medio chiusura commessa', v:'Dal primo contatto alla firma'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Posizionamento', items:['Definisci specializzazione','Portfolio case study','LinkedIn aziendale']},
-      {ph:'30-60 gg', goal:'Relazioni B2B', items:['Mappatura studi progettazione','Outreach strutturato','Monitor bandi attivo']},
-      {ph:'60-90 gg', goal:'Pipeline', items:['CRM opportunità','Key account plan','Primo accordo quadro']}
-    ]
-  },
-  mfg: {
-    strengths: ['Competenza tecnica profonda e certificata','Relazioni consolidate con clienti storici','Capacità produttiva verificata'],
-    priorities: [
-      {t:'Struttura un processo di business development proattivo', d:'Aspettare le RFQ non è una strategia commerciale. Un account manager con piano di visita strutturato e CRM aggiornato genera pipeline indipendentemente dagli ordini in arrivo.'},
-      {t:'Costruisci contenuti tecnici che dimostrano competenza', d:'White paper, case study, video di processo: nel B2B manifatturiero il contenuto tecnico è il miglior lead magnet. Chi dimostra know-how prima della trattativa vince.'},
-      {t:'Sviluppa una strategia export strutturata', d:'Il mercato manifatturiero è globale. Identificare 2-3 mercati target, partecipare alle fiere chiave e avere materiali EN/DE è il minimo per non cedere terreno ai competitor europei.'}
-    ],
-    kpi: [{n:'Pipeline B2B attiva', v:'Valore opportunità in corso'},{n:'Win rate su offerte inviate', v:'Benchmark settore: 25-35%'},{n:'% fatturato export', v:'Obiettivo: >30%'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Sales process', items:['CRM implementato','Account list priorità','Visita top 10 clienti']},
-      {ph:'30-60 gg', goal:'Contenuti', items:['2 case study tecnici','Schede prodotto EN','LinkedIn aziendale attivo']},
-      {ph:'60-90 gg', goal:'Export', items:['Selezione 2 mercati','Fiera target identificata','Primo agente contattato']}
-    ]
-  },
-  blue: {
-    strengths: ['Conoscenza profonda del mercato nautico e marittimo','Relazioni consolidate nel settore','Asset operativi e flotta con potenziale di valorizzazione'],
-    priorities: [
-      {t:'Costruisci un piano commerciale che copre tutto l\'anno', d:'Smettila di subire la stagionalità. Un calendario di offerte e attività distribuite sui 12 mesi trasforma i mesi morti in opportunità MICE, corporate e formazione.'},
-      {t:'Attiva un canale di acquisizione diretto', d:'La dipendenza da OTA o intermediari erode i margini. Investi in un sistema diretto: sito ottimizzato, SEO, database clienti proprietario e campagne email.'},
-      {t:'Segmenta e riattiva il database clienti esistente', d:'Hai clienti passati che non senti da mesi. Una campagna di riattivazione costa quasi zero e ha tassi di risposta del 30-40%. Parti da lì prima di acquisire nuovi.'}
-    ],
-    kpi: [{n:'% prenotazioni dirette vs OTA', v:'Obiettivo: >40% diretto'},{n:'Tasso ritorno clienti', v:'Benchmark: >25% annuo'},{n:'Fatturato bassa stagione', v:'Obiettivo: >30% del totale'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Database', items:['Segmentazione clienti','Campagna riattivazione','CRM base attivo']},
-      {ph:'30-60 gg', goal:'Canale diretto', items:['SEO sito ottimizzato','Piano editoriale','Offerta MICE']},
-      {ph:'60-90 gg', goal:'Internazionale', items:['Materiali EN','Canali internazionali','Partnership operatori esteri']}
-    ]
-  },
-  services: {
-    strengths: ['Expertise professionale riconoscibile e verificata','Portfolio clienti con potenziale di espansione','Capacità consulenziale differenziante'],
-    priorities: [
-      {t:'Definisci il tuo posizionamento specialistico', d:'Stai comunicando una proposta generica in un mercato che premia gli specialisti. Prima di investire in qualsiasi canale, chiarisci per chi sei e perché sei la scelta migliore.'},
-      {t:'Sistematizza il referral che già funziona', d:'Il passaparola puoi strutturarlo. Un referral program semplice — anche solo chiedere in modo esplicito con un processo — può raddoppiare il flusso di contatti qualificati.'},
-      {t:'Attiva LinkedIn come canale di authority', d:'I tuoi potenziali clienti sono già lì. Non serve un team di content marketing: 2 post a settimana con contenuto utile costruiscono autorevolezza in 90 giorni.'}
-    ],
-    kpi: [{n:'Conversion rate proposta → contratto', v:'Benchmark B2B: 20-30%'},{n:'LTV medio per cliente', v:'Valore totale del rapporto'},{n:'% fatturato da referral', v:'Obiettivo: >40%'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Posizionamento', items:['Value proposition','Niche selection','LinkedIn ottimizzato']},
-      {ph:'30-60 gg', goal:'Contenuti', items:['2 post/settimana','1 case study','Referral program']},
-      {ph:'60-90 gg', goal:'Pipeline', items:['CRM lead tracking','Proposta standardizzata','Follow-up sistematico']}
-    ]
-  },
-  green: {
-    strengths: ['Competenza tecnica su impianti e normativa incentivi','Presenza in un mercato in forte espansione','Portfolio installazioni con potenziale referral'],
-    priorities: [
-      {t:'Costruisci una narrativa oltre il risparmio in bolletta', d:'Il risparmio economico è un\'entry ticket, non un differenziatore. Posizionati su sostenibilità, indipendenza energetica e valore immobiliare: parlano a segmenti più ampi e con margini migliori.'},
-      {t:'Trasforma il post-vendita in revenue ricorrente', d:'Contratti di manutenzione e monitoraggio remoto sono revenue prevedibile a basso costo di acquisizione. Un cliente che ha già acquistato è il tuo miglior lead per upselling.'},
-      {t:'Presidia attivamente gli incentivi come valore aggiunto', d:'Chi guida il cliente attraverso il labirinto di incentivi e finanziamenti si posiziona come consulente, non come venditore. Questa competenza vale più dell\'impianto stesso.'}
-    ],
-    kpi: [{n:'% fatturato da manutenzione ricorrente', v:'Obiettivo: >15%'},{n:'Costo acquisizione lead', v:'CAC per canale (digitale vs referral)'},{n:'NPS clienti post-installazione', v:'Benchmark: >50'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Narrativa', items:['Repositioning brief','Materiali ESG','Google Ads ottimizzato']},
-      {ph:'30-60 gg', goal:'Post-vendita', items:['Offerta manutenzione','CRM clienti attivi','Upselling efficienza']},
-      {ph:'60-90 gg', goal:'B2B', items:['Pipeline industriale','Comunità energetiche','Partner finanziatori']}
-    ]
-  },
-  moda: {
-    strengths: ['Competenza artigianale e produttiva distintiva','Made in Italy come asset di posizionamento','Accesso a filiere di qualità e certificazioni'],
-    priorities: [
-      {t:'Costruisci un brand proprio anche partendo dal terzismo', d:'Il terzismo garantisce fatturato ma ti espone alla volatilità dei brand clienti. Un brand proprio — anche piccolo — è l\'unica via per costruire valore a lungo termine.'},
-      {t:'Racconta l\'artigianalità con contenuti editoriali', d:'Il making-of, il territorio, le mani che lavorano: questo tipo di contenuto non ha equivalenti nel fast fashion e genera engagement altissimo su Instagram e Pinterest.'},
-      {t:'Apri il canale D2C digitale anche come test', d:'Un e-commerce non richiede un team di 10 persone. Una landing page con 10-20 prodotti chiave, una strategia SEO e una campagna social ti danno dati reali sul mercato.'}
-    ],
-    kpi: [{n:'% fatturato brand proprio vs terzismo', v:'Trend annuale'},{n:'Engagement rate contenuti artigianali', v:'vs contenuti prodotto generico'},{n:'CAC e-commerce D2C', v:'vs costo agente wholesale'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Brand', items:['Brand identity','Storytelling filiera','Profili social attivati']},
-      {ph:'30-60 gg', goal:'Contenuti', items:['Piano editoriale IG','2 video making-of','Lookbook stagionale']},
-      {ph:'60-90 gg', goal:'D2C', items:['E-commerce base','Prima campagna Meta','Wholesale digitale (B2B)']
-      }
-    ]
-  },
-  health: {
-    strengths: ['Reputazione clinica consolidata nel territorio','Base pazienti ricorrente con alto potenziale di fidelizzazione','Servizi con domanda strutturalmente crescente'],
-    priorities: [
-      {t:'Ottimizza la presenza su Google come primo punto di contatto', d:'Il 77% dei pazienti cerca online prima di scegliere una struttura sanitaria. Google My Business ottimizzato, recensioni gestite e SEO locale sono la priorità assoluta.'},
-      {t:'Struttura il patient journey oltre la visita', d:'Reminder, follow-up, programmi di prevenzione: ogni touchpoint dopo la visita è un\'occasione per fidelizzare e ridurre il tasso di abbandono verso strutture concorrenti.'},
-      {t:'Sviluppa l\'offerta privata con un posizionamento premium', d:'Il segmento privato ha margini strutturalmente più alti. Un\'offerta chiara, tempi d\'attesa ridotti e un\'esperienza paziente superiore giustificano un premium pricing.'}
-    ],
-    kpi: [{n:'% pazienti da canale digitale', v:'vs passaparola e medico curante'},{n:'Tasso ritorno pazienti', v:'Visite/anno per paziente attivo'},{n:'% fatturato servizi privati', v:'vs convenzionato'}],
-    plan: [
-      {ph:'0-30 gg', goal:'Visibilità', items:['Google My Business','Gestione recensioni','SEO locale']},
-      {ph:'30-60 gg', goal:'Patient journey', items:['CRM pazienti','Reminder automatici','Contenuti informativi']},
-      {ph:'60-90 gg', goal:'Premium', items:['Offerta privata strutturata','Campagna Google Ads','Partnership MMG']}
-    ]
-  }
-};
-
-// ── STATE ─────────────────────────────────────────────────────────────────────
-let selectedSector = null;
-let questions = [];
-let answers = [];
-let currentQ = 0;
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
-(function init(){
-  const grid = document.getElementById('sector-grid');
-  SECTORS.forEach(s => {
-    const btn = document.createElement('button');
-    btn.className = 'sector-btn';
-    btn.dataset.id = s.id;
-    btn.innerHTML = `<span class="sector-icon">${s.icon}</span><div class="sector-info"><div class="sector-name">${s.name}</div><div class="sector-desc">${s.desc}</div></div>`;
-    btn.onclick = () => selectSector(s.id, btn);
-    grid.appendChild(btn);
-  });
-})();
-
-function selectSector(id, el) {
-  document.querySelectorAll('.sector-btn').forEach(b => b.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedSector = id;
-  document.getElementById('btn-start').disabled = false;
-}
-
-function startAssessment() {
-  questions = [...COMMON, ...VERTICAL[selectedSector]];
-  answers = new Array(questions.length).fill(null);
-  currentQ = 0;
-  showScreen('s-question');
-  renderQ(0);
-}
-
-// ── QUESTION ENGINE ───────────────────────────────────────────────────────────
-function renderQ(i) {
-  const q = questions[i];
-  const total = questions.length;
-  const pct = ((i + 1) / total) * 100;
-
-  document.getElementById('progress').style.width = pct + '%';
-  document.getElementById('topbar-step').textContent = (i+1) + ' di ' + total;
-  document.getElementById('q-section').textContent = q.s;
-  document.getElementById('q-counter').textContent = 'Domanda ' + (i+1) + ' di ' + total;
-  document.getElementById('q-text').textContent = q.q;
-  document.getElementById('step-info').textContent = (i+1) + ' / ' + total;
-
-  const opts = document.getElementById('q-options');
-  opts.innerHTML = '';
-  const letters = ['A','B','C','D'];
-  q.o.forEach((txt, j) => {
-    const btn = document.createElement('button');
-    btn.className = 'opt-btn' + (answers[i] === j ? ' selected' : '');
-    btn.innerHTML = `<span class="opt-letter">${letters[j]}</span><span class="opt-text">${txt}</span>`;
-    btn.onclick = () => selectOpt(i, j);
-    opts.appendChild(btn);
-  });
-
-  document.getElementById('btn-back').disabled = (i === 0);
-  const btnNext = document.getElementById('btn-next');
-  btnNext.disabled = answers[i] === null;
-  btnNext.textContent = (i === questions.length - 1) ? 'Concludi →' : 'Avanti →';
-}
-
-function selectOpt(qi, oi) {
-  answers[qi] = oi;
-  document.querySelectorAll('.opt-btn').forEach((el, j) => {
-    el.classList.toggle('selected', j === oi);
-    el.querySelector('.opt-letter').textContent = ['A','B','C','D'][j];
-  });
-  document.getElementById('btn-next').disabled = false;
-}
-
-function nextQ() {
-  if (currentQ < questions.length - 1) {
-    currentQ++;
-    renderQ(currentQ);
-  } else {
-    showScreen('s-lead');
-    document.getElementById('progress').style.width = '100%';
-    document.getElementById('topbar-step').textContent = 'Inserisci i tuoi dati';
-  }
-}
-
-function prevQ() {
-  if (currentQ > 0) { currentQ--; renderQ(currentQ); }
-  else { showScreen('s-intro'); document.getElementById('progress').style.width = '0%'; document.getElementById('topbar-step').textContent = ''; }
-}
-
-function goBack() {
-  currentQ = questions.length - 1;
-  showScreen('s-question');
-  renderQ(currentQ);
-}
-
-// ── LEAD CAPTURE & BREVO ─────────────────────────────────────────────────────
-async function submitLead() {
-  const name    = document.getElementById('f-name').value.trim();
-  const email   = document.getElementById('f-email').value.trim();
-  const company = document.getElementById('f-company').value.trim();
-  const role    = document.getElementById('f-role').value.trim();
-  const status  = document.getElementById('lead-status');
-
-  if (!name || !email || !company) {
-    status.className = 'status-msg error';
-    status.textContent = 'Compila i campi obbligatori: nome, email e azienda.';
-    return;
-  }
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    status.className = 'status-msg error';
-    status.textContent = 'Inserisci un indirizzo email valido.';
-    return;
-  }
-
-  const btn = document.getElementById('btn-submit');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="btn-loading"><span class="spinner"></span>Invio in corso…</span>';
-  status.className = 'status-msg';
-  status.textContent = '';
-
-  const scores = questions.map((q, i) => answers[i] !== null ? q.sc[answers[i]] : 1);
-  const totalScore = scores.reduce((a,b) => a+b, 0);
-  const sectorName = SECTORS.find(s => s.id === selectedSector)?.name || selectedSector;
-  const level = totalScore <= 22 ? 'Early Stage' : totalScore <= 34 ? 'Growth Ready' : 'Scale Up';
-
-  // Salva i dati in localStorage come backup
-  try {
-    const leadData = { email, name, company, role, score: totalScore, level, sector: sectorName, ts: new Date().toISOString() };
-    localStorage.setItem('beyond_lead', JSON.stringify(leadData));
-  } catch(e) {}
-
-  // Invia a Brevo via form nativo (no CORS)
-  try {
-    const formData = new FormData();
-    formData.append('EMAIL', email);
-    formData.append('FIRSTNAME', name.split(' ')[0]);
-    formData.append('LASTNAME', name.split(' ').slice(1).join(' ') || '');
-    formData.append('COMPANY', company);
-    formData.append('JOBTITLE', role || '');
-    formData.append('GROWTH_SCORE', totalScore);
-    formData.append('GROWTH_LEVEL', level);
-    formData.append('SECTOR', sectorName);
-    formData.append('email_address_check', '');
-    formData.append('locale', 'it');
-    fetch('https://1b391f45.sibforms.com/serve/MUIFAF6ap23rNn1jFVZw6GeLN-IrkqoHqHRfrJ4z56gxYqOZ7wdHQxmqnUoF6dIu9olacak45aDj4qllLPVmRYHn66_Kf8Fk1_PtT0YKSL15P6sHWcI6VcmBQ9OXkI3Y32EzbFUgGbn5tFZIoAV2nX8z5_BwU76IQh797VKqZ87d7IepzY-8W1nxQQhIXMI0Yav0h6Huh6N1RKxQ6w==', {
-      method: 'POST',
-      mode: 'no-cors',
-      body: formData
-    });
-  } catch(e) {}
-
-  // Mostra sempre il risultato — indipendentemente dall'esito dell'invio
-  showResult(scores, totalScore, name);
-}
-
-// ── RESULT RENDER ─────────────────────────────────────────────────────────────
-function showResult(scores, totalScore, name) {
-  const level = totalScore <= 22 ? 'early' : totalScore <= 34 ? 'ready' : 'scale';
-  const prof  = PROFILES[level];
-  const data  = SECTOR_DATA[selectedSector];
-  const sectorName = SECTORS.find(s => s.id === selectedSector)?.name || '';
-
-  document.getElementById('r-score').textContent = totalScore;
-  document.getElementById('r-sector-label').textContent = sectorName;
-
-  const badge = document.getElementById('r-badge');
-  badge.textContent = prof.label;
-  badge.className = 'level-pill ' + prof.cls;
-
-  document.getElementById('r-profile').textContent = prof.text;
-
-  const sEl = document.getElementById('r-strengths');
-  sEl.innerHTML = data.strengths.map(s =>
-    `<div class="strength-item"><div class="check-dot"></div><span>${s}</span></div>`
-  ).join('');
-
-  const pEl = document.getElementById('r-priorities');
-  pEl.innerHTML = data.priorities.map((p, i) =>
-    `<div class="priority-card">
-      <div class="priority-num">${i+1}</div>
-      <div class="priority-content">
-        <div class="priority-title">${p.t}</div>
-        <div class="priority-desc">${p.d}</div>
-      </div>
-    </div>`
-  ).join('');
-
-  const planEl = document.getElementById('r-plan');
-  planEl.innerHTML = data.plan.map(col =>
-    `<div class="plan-col">
-      <div class="plan-phase">${col.ph}</div>
-      <div class="plan-goal">${col.goal}</div>
-      <ul class="plan-items">${col.items.map(i => `<li>${i}</li>`).join('')}</ul>
-    </div>`
-  ).join('');
-
-  const kpiEl = document.getElementById('r-kpi');
-  kpiEl.innerHTML = data.kpi.map(k =>
-    `<div class="kpi-row"><span class="kpi-name">${k.n}</span><span class="kpi-val">${k.v}</span></div>`
-  ).join('');
-
-  document.querySelector('.cta-btn').href = CALENDLY_URL;
-
-  // Add print button
-  const existingPrint = document.getElementById('btn-print');
-  if (existingPrint) existingPrint.remove();
-  const printBtn = document.createElement('button');
-  printBtn.id = 'btn-print';
-  printBtn.innerHTML = '⬇ Salva o stampa il report';
-  printBtn.style.cssText = 'display:block;width:100%;margin:1rem 0 0;padding:11px;border:1px solid #D1D5DB;border-radius:8px;background:white;font-size:13px;font-weight:500;color:#3D4450;cursor:pointer;font-family:inherit;';
-  printBtn.onclick = () => window.print();
-  document.querySelector('.cta-box').after(printBtn);
-
-  showScreen('s-result');
-  document.getElementById('progress').style.width = '100%';
-  document.getElementById('topbar-step').textContent = 'Il tuo report';
-  window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
-// ── UTILS ─────────────────────────────────────────────────────────────────────
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-</script>
+<script src="/assessment.js"></script>
 <script src="/chat-widget.js" data-teaser="off" defer></script>
 </body>
 </html>

@@ -24,7 +24,7 @@ assessment.beyondstrategy.it ────────────────┤
 - **Prossimo passo**: proposta dell'assessment, pulsante Calendly precompilato oppure salvataggio del contatto su Brevo, solo dopo un consenso esplicito.
 - **Collegamento con l'assessment**: se l'utente ha completato l'assessment, il bot usa punteggio, livello e settore per personalizzare la conversazione.
 - **Conformità**: dichiara di essere un assistente AI (AI Act, art. 50), chiede il consenso prima di salvare dati personali (GDPR) e mostra il link all'informativa privacy.
-- **Protezioni tecniche**: limite di 20 richieste al minuto per IP, CORS limitato ai domini Beyond, messaggi di lunghezza limitata, nessun dato salvato lato server oltre al contatto su Brevo.
+- **Protezioni tecniche**: limite di 20 richieste al minuto per IP, accesso consentito solo dal browser sui domini Beyond, messaggi di lunghezza limitata, nessun dato salvato lato server oltre al contatto su Brevo.
 
 ## Deploy su Netlify
 
@@ -55,12 +55,21 @@ Nel sito principale, anch'esso su Netlify, aggiungi questa riga prima di `</body
 
 Opzioni (attributi sul tag):
 
-- `data-privacy-url="https://beyondstrategy.it/privacy-policy"`: link all'informativa privacy (verifica che sia l'URL giusto);
+- `data-privacy-url="https://beyondstrategy.it/privacy-policy"`: link all'informativa privacy. Verifica che sia l'URL giusto: lo stesso link è usato nel consenso dell'assessment (`public/index.html`). L'informativa deve citare Brevo e Anthropic come responsabili del trattamento;
 - `data-teaser="off"`: disattiva il messaggio proattivo che compare dopo 12 secondi.
 
 Sull'assessment il widget è già incluso, con il messaggio proattivo disattivato.
 
-## ⚠️ Sicurezza: ruota la chiave Brevo
+## Sicurezza
+
+- **Intestazioni HTTP** (`netlify.toml`): Content Security Policy restrittiva (solo script del sito, nessuno script inline), HSTS, protezione dal clickjacking (`frame-ancestors 'none'`), `nosniff`, Referrer-Policy e Permissions-Policy.
+- **Assessment**: script spostato in `public/assessment.js` per poter vietare gli script inline; consenso privacy obbligatorio con link all'informativa; nel browser resta solo il risultato (senza email), che il chatbot cancella dopo 90 giorni.
+- **Superficie ridotta**: rimosso l'endpoint `/api/subscribe`, non usato dall'assessment e utilizzabile da chiunque per inserire contatti falsi in Brevo.
+- **Chatbot**: richieste accettate solo dai domini autorizzati, limite di frequenza per IP, link nelle risposte solo `https`, chiavi API solo nelle variabili d'ambiente.
+- **Costi**: imposta un limite di spesa mensile nella console Anthropic (Settings → Limits) come protezione contro abusi.
+- **Sito principale**: se beyondstrategy.it ha una Content Security Policy, aggiungi `https://assessment.beyondstrategy.it` a `script-src` e `connect-src` e `https://fonts.googleapis.com` a `style-src`, altrimenti il widget viene bloccato.
+
+### ⚠️ Ruota la chiave Brevo
 
 Una versione precedente di questo README conteneva la chiave API di Brevo in chiaro. Resta visibile nella cronologia git, quindi va considerata compromessa:
 
@@ -79,11 +88,11 @@ npx netlify dev        # serve il sito e le funzioni su http://localhost:8888
 
 ```
 public/
-  index.html               ← Assessment
+  index.html               ← Assessment (markup e stili)
+  assessment.js            ← Logica dell'assessment
   chat-widget.js           ← Widget del chatbot (JavaScript senza dipendenze, Shadow DOM)
 netlify/
   functions/chat.mts       ← /api/chat: conversazione con Claude + strumenti
-  functions/subscribe.mts  ← /api/subscribe: salvataggio contatti su Brevo
   lib/knowledge.mts        ← lettura e cache dei contenuti di beyondstrategy.it
   lib/prompt.mts           ← istruzioni del Growth Advisor
   lib/brevo.mts            ← integrazione Brevo

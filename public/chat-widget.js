@@ -55,6 +55,11 @@
   function assessmentContext() {
     var lead = safeGet(localStorage, 'beyond_lead');
     if (!lead || typeof lead !== 'object') return undefined;
+    // Risultati più vecchi di 90 giorni non sono più rilevanti: li cancelliamo
+    if (!lead.ts || Date.now() - new Date(lead.ts).getTime() > 90 * 864e5) {
+      try { localStorage.removeItem('beyond_lead'); } catch (e) {}
+      return undefined;
+    }
     return {
       name: lead.name, company: lead.company, role: lead.role,
       sector: lead.sector, score: Number(lead.score), level: lead.level
@@ -155,8 +160,8 @@
   function inline(s) {
     return escapeHtml(s)
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-      .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+      .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/(^|[\s(])(https:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
   }
   function renderMarkdown(text) {
     var html = '', list = false;

@@ -232,7 +232,8 @@ export default async (req: Request, _context: Context) => {
   const cors = corsHeaders(origin);
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-  if (origin && !cors["access-control-allow-origin"] && new URL(req.url).origin !== origin) {
+  // Solo richieste dal browser sui domini autorizzati (o dallo stesso sito, es. deploy preview)
+  if (!origin || (!cors["access-control-allow-origin"] && new URL(req.url).origin !== origin)) {
     return Response.json({ error: "Origine non autorizzata" }, { status: 403 });
   }
 
