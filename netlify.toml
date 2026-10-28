@@ -1,0 +1,13 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Il widget viene caricato da beyondstrategy.it: cache breve per far arrivare subito gli aggiornamenti
+[[headers]]
+  for = "/chat-widget.js"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
+    Access-Control-Allow-Origin = "*"
