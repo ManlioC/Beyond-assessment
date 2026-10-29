@@ -1,0 +1,16 @@
+{
+  "name": "beyond-assessment",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@netlify/blobs": "^11.1.7"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^6.0.3",
+    "typescript": "^5.9.3"
+  }
+}
