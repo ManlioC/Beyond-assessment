@@ -3,7 +3,7 @@
  * Inserimento: <script src="https://assessment.beyondstrategy.it/chat-widget.js" defer></script>
  * Opzioni (attributi data-* sul tag script):
  *   data-api             endpoint della chat (default: stessa origine dello script + /api/chat)
- *   data-privacy-url     link all'informativa privacy (default: https://beyondstrategy.it/privacy-policy)
+ *   data-privacy-url     link all'informativa privacy (default: https://beyondstrategy.it/privacy)
  *   data-teaser          "off" per disattivare il messaggio proattivo
  */
 (function () {
@@ -14,7 +14,7 @@
   var script = document.currentScript || document.querySelector('script[src*="chat-widget.js"]');
   var scriptOrigin = script ? new URL(script.src, location.href).origin : location.origin;
   var API_URL = (script && script.dataset.api) || scriptOrigin + '/api/chat';
-  var PRIVACY_URL = (script && script.dataset.privacyUrl) || 'https://beyondstrategy.it/privacy-policy';
+  var PRIVACY_URL = (script && script.dataset.privacyUrl) || 'https://beyondstrategy.it/privacy';
   var TEASER = !(script && script.dataset.teaser === 'off');
   var STORAGE_KEY = 'beyond_chat_v1';
   var MAX_HISTORY = 38;

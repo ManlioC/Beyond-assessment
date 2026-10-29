@@ -55,7 +55,7 @@ Nel sito principale, anch'esso su Netlify, aggiungi questa riga prima di `</body
 
 Opzioni (attributi sul tag):
 
-- `data-privacy-url="https://beyondstrategy.it/privacy-policy"`: link all'informativa privacy. Verifica che sia l'URL giusto: lo stesso link è usato nel consenso dell'assessment (`public/index.html`). L'informativa deve citare Brevo e Anthropic come responsabili del trattamento;
+- `data-privacy-url="https://beyondstrategy.it/privacy"`: link all'informativa privacy, lo stesso usato nel consenso dell'assessment (`public/index.html`). L'informativa deve citare Brevo e Anthropic come responsabili del trattamento;
 - `data-teaser="off"`: disattiva il messaggio proattivo che compare dopo 12 secondi.
 
 Sull'assessment il widget è già incluso, con il messaggio proattivo disattivato.
