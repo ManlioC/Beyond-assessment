@@ -5,6 +5,20 @@
 [functions]
   node_bundler = "esbuild"
 
+# L'assessment ufficiale è ora sul sito: questo dominio resta solo per il chatbot
+# (/chat-widget.js e /api/chat), le vecchie pagine portano al nuovo assessment
+[[redirects]]
+  from = "/"
+  to = "https://beyondstrategy.it/growth-assessment"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/index.html"
+  to = "https://beyondstrategy.it/growth-assessment"
+  status = 301
+  force = true
+
 # Intestazioni di sicurezza per tutte le pagine statiche
 [[headers]]
   for = "/*"
