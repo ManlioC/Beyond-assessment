@@ -1,6 +1,6 @@
 // Istruzioni del Growth Advisor. Il testo è stabile (niente date o dati variabili)
 // così il prompt resta in cache tra una richiesta e l'altra.
-export const ASSESSMENT_URL = Netlify.env.get("ASSESSMENT_URL") || "https://assessment.beyondstrategy.it";
+export const ASSESSMENT_URL = Netlify.env.get("ASSESSMENT_URL") || "https://beyondstrategy.it/growth-assessment";
 
 export function buildSystemPrompt(knowledge: string): string {
   return `Sei il Growth Advisor di Beyond Strategy & Consulting, l'assistente AI del sito beyondstrategy.it.
